@@ -4,22 +4,6 @@
 
 ---
 
-## 📌 Table of Contents
-
-1. [Project Overview](#project-overview)  
-2. [Tech Stack](#tech-stack)  
-3. [Features](#features)  
-4. [Getting Started](#getting-started)  
-5. [Database Setup](#database-setup)  
-6. [Running the Project](#running-the-project)  
-7. [API Endpoints](#api-endpoints)  
-8. [Authentication & Authorization](#authentication--authorization)  
-9. [Next Steps / Frontend Work](#next-steps--frontend-work)  
-10. [Contributing](#contributing)  
-11. [License](#license)
-
----
-
 ## 🧭 Project Overview
 
 This project is the **backend API** for a merchant-focused inventory management system, enabling:
@@ -29,7 +13,7 @@ This project is the **backend API** for a merchant-focused inventory management 
 - ✅ Sales/restock transaction logging  
 - ✅ Reporting (inventory, sales, stock valuation)  
 - ✅ User authentication & role-based access  
-- ✅ Razor-ready for frontend consumption (React + auth)
+
 
 ---
 
