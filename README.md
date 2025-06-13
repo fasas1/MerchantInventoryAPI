@@ -1,4 +1,4 @@
-# MerchantInventoryAPI 🚀
+# MerchantInventoryAPI 
 
 **Full-stack Inventory Management API** built with **.NET 8 Web API**, featuring products, stock, transactions, reporting, and user authentication. Ready to serve your React frontend.
 
