@@ -1,6 +1,7 @@
 ﻿using MechantInventory.Data;
 using MechantInventory.Interface;
 using MechantInventory.Model;
+using MechantInventory.Model.Dto;
 using MechantInventory.Services;
 using MechantInventory.Utility;
 using MerchantInventory.Models;
@@ -8,6 +9,7 @@ using MerchantInventory.Models.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using System.Net;
 
 namespace MechantApi.Controllers
@@ -29,16 +31,55 @@ namespace MechantApi.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
-        public async Task<IActionResult> GetProducts([FromQuery] int pageSize = 1, [FromQuery] int pageNumber = 1)
+        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]       
+        public async Task<IActionResult> GetProducts(
+               [FromQuery] string search="",
+               [FromQuery] int pageSize = 10,
+               [FromQuery] int pageNumber = 1
+            )
         {
-      
+            Expression<Func<Product, bool>> filter = null;
 
-            var products = await _productRepository.GetAllAsync(pageSize: pageSize, pageNumber: pageNumber);
-            _response.Result = products;
-            _response.StatusCode = HttpStatusCode.OK;
-            return Ok(_response);
+            if (!string.IsNullOrEmpty(search))
+            {
+                filter = p => p.Name.ToLower().Contains(search.ToLower());
+
+            }
+
+            var pagedProducts = await _productRepository.GetAllAsync(
+                  
+                    filter: filter,
+                    pageNumber: pageNumber,
+                    pageSize: pageSize
+                );
+
+            var productDto = pagedProducts.Items.Select(p => new ProductDto
+            {
+                
+                ProductId = p.ProductId,
+                Name = p.Name,
+                Price = p.Price,
+                Category = p.Category,
+                ImageUrl = p.ImageUrl,
+
+            }).ToList();
+
+            var response = new ApiResponse
+            {
+                Result = productDto,
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                TotalCount = pagedProducts.TotalCount,
+                PageSize = pagedProducts.PageSize,
+                PageNumber = pagedProducts.PageNumber
+            };
+            return Ok(response);
         }
+
+
+
+
+
 
         [HttpGet("{id:int}", Name = "GetProduct")]
         [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
@@ -65,7 +106,7 @@ namespace MechantApi.Controllers
        
         [HttpPost]
         [Consumes("multipart/form-data")]
-        [Authorize(Roles = SD.Role_Admin)]
+        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
         public async Task<ActionResult<ApiResponse>> CreateProduct([FromForm] ProductCreateDto productDto)
         {
             try

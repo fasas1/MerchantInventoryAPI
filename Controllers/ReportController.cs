@@ -36,6 +36,14 @@ namespace MechantInventory.Controllers
             var value = await _reportRepository.GetStockValuationAsync();
             return Ok(new { TotalValue = value });
         }
+
+        [HttpGet("summary")]
+        public async Task<IActionResult> GetSummaryReport([FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            var summary = await _reportRepository.GetSummaryReportAsync(start, end);
+            return Ok(summary);
+        }
+
     }
 
 }

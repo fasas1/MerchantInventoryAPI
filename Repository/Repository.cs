@@ -1,5 +1,6 @@
 ﻿using MechantInventory.Data;
 using MechantInventory.Repository.IRepository;
+using MerchantInventory.Models.Dto;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -23,32 +24,54 @@ namespace MechantInventory.Repository
             await SaveAsync();
         }
 
-        public async Task<List<T>> GetAllAsync(Expression<Func<T, bool>> filter = null, string? includeProperties = null,
-                                  int pageSize = 5, int pageNumber = 1)
+        public async Task<PagedResult<T>> GetAllAsync(
+       Expression<Func<T, bool>> filter = null,
+       string? includeProperties = null,
+       int pageSize = 10,
+       int pageNumber = 1,
+       Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null
+   )
         {
             IQueryable<T> query = dbSet;
+
             if (filter != null)
             {
                 query = query.Where(filter);
             }
-             if(pageSize > 0)
+
+            if (!string.IsNullOrEmpty(includeProperties))
             {
-                if(pageSize > 100)
-                {
-                    pageSize = 100;
-                }
-                query = query.Skip(pageSize * (pageNumber - 1)).Take(pageSize);
-            }
-            // Include the specified navigation properties
-            if (includeProperties != null)
-            {
-                foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                foreach (var includeProperty in includeProperties.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     query = query.Include(includeProperty);
                 }
             }
-            return await query.ToListAsync();
+
+            if (orderBy != null)
+            {
+                query = orderBy(query);
+            }
+            var totalCount = await query.CountAsync();
+            if (pageSize > 0)
+            {
+                if (pageSize > 100) pageSize = 100;
+                query = query
+                        .Skip(pageSize * (pageNumber - 1))
+                        .Take(pageSize);
+            }
+
+             var items = await query.ToListAsync();
+
+            return new PagedResult<T>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+             
+            };
         }
+
 
         public async Task<T> GetAsync(Expression<Func<T, bool>> filter = null, bool tracked = true, string? includeProperties = null)
         {

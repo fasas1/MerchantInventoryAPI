@@ -6,6 +6,7 @@ namespace MechantInventory.Repository.IRepository
     {
         Task<List<InventoryReportDto>> GetInventoryReportAsync();
         Task<List<SalesReportDto>> GetSalesReportAsync(DateTime start, DateTime end);
+        Task <SummaryReportDto> GetSummaryReportAsync(DateTime start, DateTime end);
         Task<decimal> GetStockValuationAsync();
     }
 }

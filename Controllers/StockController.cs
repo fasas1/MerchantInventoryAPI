@@ -10,6 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using System.Net;
 using MechantInventory.Model.Dto;
 using MechantInventory.Interface;
+using MechantInventory.Utility;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 
 namespace MechantInventory.Controllers
@@ -27,31 +30,43 @@ namespace MechantInventory.Controllers
             _response = new ApiResponse();
             _stockRepository = stockRepository; 
         }
-
         [HttpGet]
-        public async Task<ActionResult<ApiResponse>> GetAllStocks()
+        public async Task<ActionResult<ApiResponse>> GetAllStocks([FromQuery] int pageSize = 10,
+     [FromQuery] int pageNumber = 1)
         {
+            var pagedStocks = await _stockRepository.GetAllAsync(
+                 includeProperties:"Product",
+                 pageNumber : pageNumber,
+                 pageSize : pageSize 
+                );
 
-            var stocks = await _stockRepository.GetAllAsync(includeProperties: "Product");
-
-            var stockList = stocks.Select(s => new StockReadDto
+            var stockDto = pagedStocks.Items.Select(s => new StockReadDto
             {
                 StockId = s.StockId,
                 CurrentQuantity = s.CurrentQuantity,
                 LastUpdated = s.LastUpdated,
                 Threshold = s.Threshold,
                 ProductId = s.ProductId,
-                ProductName = s.Product?.Name
-            }).ToList();
+                ProductName = s.Product?.Name,
+                ProductPrice = s.Product?.Price
+            }). ToList();
 
-            _response.Result = stockList;
-            _response.StatusCode = HttpStatusCode.OK;
+            var response = new ApiResponse
+            {
+                Result = stockDto,
+                IsSuccess = true,
+                StatusCode = HttpStatusCode.OK,
+                TotalCount = pagedStocks.TotalCount,
+                PageSize = pagedStocks.PageSize,
+                PageNumber = pagedStocks.PageNumber
+            };
 
-            return Ok(_response);
+            return Ok(response);
         }
 
 
         [HttpGet("{id}", Name = "GetStock")]
+        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
         public async Task<ActionResult<ApiResponse>> GetStock(int id)
         {
             var stock = await _db.Stocks.Include(s => s.Product).FirstOrDefaultAsync(s => s.StockId == id);
@@ -79,6 +94,7 @@ namespace MechantInventory.Controllers
         }
 
         [HttpGet("GetStockStatus/{id}")]
+        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
         public async Task<ActionResult<string>> GetStockStatus(int id)
         {
             var stock = await _db.Stocks.FirstOrDefaultAsync(s => s.StockId == id);
@@ -95,6 +111,7 @@ namespace MechantInventory.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
         public async Task<ActionResult<ApiResponse>> CreateStock([FromBody] StockCreateDto stockDto)
         {
             try
@@ -137,30 +154,58 @@ namespace MechantInventory.Controllers
                 return _response;
             }
         }
-        // Endpoint to restock a product
-        [HttpPut("restock/{productId}")]
-        public async Task<IActionResult> RestockProduct(int productId, [FromBody] RestockDto restockDto)
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
+        public async Task<IActionResult> UpdateStock(int id, [FromBody] StockDto dto)
         {
-            var stock = await _db.Stocks.Include(s => s.Product)
-                                        .FirstOrDefaultAsync(s => s.ProductId == productId);
+            var stock = await _db.Stocks.FindAsync(id);
 
             if (stock == null)
-            {
-                return NotFound("Product not found.");
-            }
+                return NotFound("Stock not found.");
 
-            stock.CurrentQuantity += restockDto.Quantity;
-            stock.LastUpdated = DateTime.UtcNow;
+            stock.ProductId = dto.ProductId;
+            stock.CurrentQuantity = dto.CurrentQuantity;
+            stock.Threshold = dto.Threshold;
+            stock.LastUpdated = dto.LastUpdated;
 
             _db.Stocks.Update(stock);
             await _db.SaveChangesAsync();
 
-            return Ok(new
+            return Ok(stock);
+        }
+
+        [HttpDelete("{id:int}", Name = "DeleteStock")]
+        [Authorize(Roles = SD.Role_Admin)]
+
+        public async Task<ActionResult<ApiResponse>> DeleteStock(int id)
+        {
+            try
             {
-                Message = "Stock updated successfully",
-                ProductName = stock.Product?.Name,
-                NewQuantity = stock.CurrentQuantity
-            });
+                if (id == 0)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    _response.ErrorMessages = new List<string> { "Invalid product id." };
+                    return BadRequest(_response);
+                }
+                Stock stockFromDb = await _db.Stocks.FindAsync(id);
+                if (stockFromDb == null)
+                {
+                    return BadRequest();
+                }
+                _db.Stocks.Remove(stockFromDb);
+                _db.SaveChanges();
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+            }
+            catch (Exception ex)
+            {
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.IsSuccess = false;
+                return BadRequest();
+            }
+            return _response;
         }
     }
 

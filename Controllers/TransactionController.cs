@@ -34,7 +34,7 @@ namespace MechantInventory.Controllers
         {
             var transactions = await _transactionRepository.GetAllAsync(includeProperties: "Product");
 
-            var transactionList = transactions.Select(t => new TransactionReadDto
+            var transactionList = transactions.Items.Select(t => new TransactionReadDto
             {
                 ProductId = t.ProductId,
                 PerformedBy = t.PerformedBy,
