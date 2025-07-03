@@ -12,9 +12,11 @@ namespace MechantInventory.Repository
         {
             _db = db;
         }
-        public Task<Customer> UpdateAsync(Customer entity)
+        public async  Task<Customer> UpdateAsync(Customer entity)    
         {
-            throw new NotImplementedException();
+             _db.Customers.Update(entity);
+            await _db.SaveChangesAsync();
+            return entity;
         }
     }
 }

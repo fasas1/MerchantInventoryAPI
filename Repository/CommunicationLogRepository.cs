@@ -11,9 +11,11 @@ namespace MechantInventory.Repository
         {
             _db = db;  
         }
-        public Task<CommunicationLog> UpdateAsync(CommunicationLog entity)
+        public async Task<CommunicationLog> UpdateAsync(CommunicationLog entity)
         {
-            throw new NotImplementedException();
+            _db.CommunicationLogs.Update(entity);
+            await _db.SaveChangesAsync();
+            return entity;
         }
     }
 }
