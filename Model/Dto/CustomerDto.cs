@@ -4,6 +4,7 @@ namespace MechantInventory.Model.Dto
 {
     public class CustomerDto
     {
+        public Guid CustomerId { get; set; }
         [Required]
         public string Name { get; set; }
         public string? Email { get; set; }

@@ -116,20 +116,30 @@ namespace MechantInventory.Controllers
         {
             try
             {
-                Stock stockToCreate = new()
+                var existingStock = await _db.Stocks.FirstOrDefaultAsync(s =>s.ProductId == stockDto.ProductId);
+                if (existingStock != null)
                 {
-                    CurrentQuantity = stockDto.CurrentQuantity,
-                    LastUpdated = stockDto.LastUpdated,
-                    Threshold = stockDto.Threshold,
-                    ProductId = stockDto.ProductId
-                };
+                    existingStock.CurrentQuantity = stockDto.CurrentQuantity;
+                    existingStock.Threshold = stockDto.Threshold;
+                    existingStock.LastUpdated = DateTime.UtcNow;
+                    _db.Stocks.Update(existingStock);
+                }
+              
+                    Stock stockToCreate = new()
+                    {
+                        CurrentQuantity = stockDto.CurrentQuantity,
+                        LastUpdated = stockDto.LastUpdated,
+                        Threshold = stockDto.Threshold,
+                        ProductId = stockDto.ProductId
+                    };
+                    await _db.Stocks.AddAsync(stockToCreate);
+                    await _db.SaveChangesAsync();
 
-                await _db.Stocks.AddAsync(stockToCreate);
-                await _db.SaveChangesAsync();
-
-                await _db.Entry(stockToCreate)
-                         .Reference(s => s.Product)
-                         .LoadAsync();
+                    await _db.Entry(stockToCreate)
+                             .Reference(s => s.Product)
+                             .LoadAsync();
+ 
+          
 
                 // Map to DTO to avoid circular reference
                 var stockReadDto = new StockReadDto
@@ -176,7 +186,7 @@ namespace MechantInventory.Controllers
         }
 
         [HttpDelete("{id:int}", Name = "DeleteStock")]
-        [Authorize(Roles = SD.Role_Admin)]
+  
 
         public async Task<ActionResult<ApiResponse>> DeleteStock(int id)
         {

@@ -4,17 +4,17 @@ using MechantInventory.Repository.IRepository;
 
 namespace MechantInventory.Repository
 {
-    public class CustomerRepository :Repository<Customer>, ICustomerRepository
+    public class InvoiceRepository :Repository<Invoice>, IInvoiceRepository
     {
 
         private readonly ApplicationDbContext _db;
-        public CustomerRepository(ApplicationDbContext db) :base(db) 
+        public InvoiceRepository(ApplicationDbContext db) :base(db) 
         {
             _db = db;
         }
-        public async Task<Customer> UpdateAsync(Customer entity)    
+        public async  Task<Invoice> UpdateAsync(Invoice entity)    
         {
-             _db.Customers.Update(entity);
+             _db.Invoices.Update(entity);
             await _db.SaveChangesAsync();
             return entity;
         }

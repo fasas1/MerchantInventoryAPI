@@ -6,6 +6,7 @@ using MechantInventory.Model.Dto;
 using MerchantInventory.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 
 namespace MechantInventory.Controllers
@@ -28,26 +29,41 @@ namespace MechantInventory.Controllers
             _productRepository = productRepository;
             _stockRepository = stockRepository;
         }
+[HttpGet]
+public async Task<IActionResult> GetAllTransactions(int page = 1, int pageSize = 10, string search = "")
+{
+    var query = _db.Transactions.AsQueryable();
 
-        [HttpGet]
-        public async Task<ActionResult<ApiResponse>> GetAllTransactions()
-        {
-            var transactions = await _transactionRepository.GetAllAsync(includeProperties: "Product");
+    if (!string.IsNullOrEmpty(search))
+    {
+        query = query.Where(t => t.Product.Name.Contains(search) || 
+                                 t.Description.Contains(search));
+    }
 
-            var transactionList = transactions.Items.Select(t => new TransactionReadDto
-            {
-                ProductId = t.ProductId,
-                PerformedBy = t.PerformedBy,
-                Quantity = t.QuantityChanged,
-                ProductName = t.Product.Name,
-                Type = t.TransactionType
+    var totalCount = await query.CountAsync();
 
-            }).ToList();
-            _response.Result = transactionList;
-            _response.StatusCode = HttpStatusCode.OK;
+    var transactions = await query
+        .OrderByDescending(t => t.Timestamp)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(t => new {
+            t.TransactionId,
+            t.Product.Name,
+            t.QuantityChanged,
+            t.TransactionType,
+            t.PerformedBy,
+            t.Description,
+            t.Timestamp
+        })
+        .ToListAsync();
 
-            return _response;
-        }
+    return Ok(new {
+        totalCount,
+        transactions
+    });
+}
+
+
 
         [HttpGet("{id}", Name = "GetTransaction")]
         public async Task<ActionResult<ApiResponse>> GetTransaction(int id)
@@ -68,6 +84,7 @@ namespace MechantInventory.Controllers
                 Quantity = transaction.QuantityChanged,
                 Type = transaction.TransactionType,
                 PerformedBy = transaction.PerformedBy,
+                Description = transaction.Description,
                 ProductName = transaction.Product?.Name // assuming Product is loaded and has a Name
             };
 
@@ -127,7 +144,8 @@ namespace MechantInventory.Controllers
                     QuantityChanged = transactionDto.Quantity,
                     TransactionType = transactionDto.Type,
                     Timestamp = DateTime.UtcNow,
-                    PerformedBy = transactionDto.PerformedBy ?? "System"
+                    PerformedBy = transactionDto.PerformedBy ?? "System",
+                    Description = transactionDto.Description
                 };
 
                 await _db.Transactions.AddAsync(transaction);
@@ -140,7 +158,12 @@ namespace MechantInventory.Controllers
             catch (Exception ex)
             {
                 _response.IsSuccess = false;
+
                 _response.ErrorMessages.Add(ex.Message);
+
+                if (ex.InnerException != null)
+                    _response.ErrorMessages.Add(ex.InnerException.Message);
+
                 return StatusCode(500, _response);
             }
         }

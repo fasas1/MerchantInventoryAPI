@@ -3,11 +3,15 @@ using MechantInventory.Data;
 using MechantInventory.Interface;
 using MechantInventory.Model;
 using MechantInventory.Model.Dto;
+using MechantInventory.Repository;
 using MechantInventory.Repository.IRepository;
+using MechantInventory.Utility;
 using MerchantInventory.Models;
 using MerchantInventory.Models.Dto;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq.Expressions;
 using System.Net;
 
 namespace MechantInventory.Controllers
@@ -25,18 +29,55 @@ namespace MechantInventory.Controllers
             _customerRepository = customerRepository;
             _db =db;
         }
-
         [HttpGet]
-        public async Task<IActionResult> GetCustomers()
+        //[Authorize(Roles = SD.Role_Admin + "," + SD.Role_Staff)]
+        public async Task<IActionResult> GetProducts(
+                       [FromQuery] string search = "",
+                       [FromQuery] int pageSize = 10,
+                       [FromQuery] int pageNumber = 1
+                    )
         {
-            var customerList = await _customerRepository.GetAllAsync();
+            Expression<Func<Customer, bool>> filter = null;
 
-            _response.Result = customerList;
-            _response.IsSuccess = true;
-            _response.StatusCode = HttpStatusCode.OK;
+            if (!string.IsNullOrEmpty(search))
+            {
+                filter = p => p.Name.ToLower().Contains(search.ToLower());
 
-            return Ok(_response);
+            }
+
+            var pagedCustomers = await _customerRepository.GetAllAsync(
+
+                    filter: filter,
+                    pageNumber: pageNumber,
+                    pageSize: pageSize
+                );
+
+            var customerDto = pagedCustomers.Items.Select(c => new CustomerDto
+            {
+
+                CustomerId = c.CustomerId,
+                Name = c.Name,
+                Address = c.Address,
+                Notes = c.Notes,
+                Email = c.Email,
+                Phone  = c.Phone,
+                CreatedAt = DateTime.Now,
+
+            }).ToList();
+
+            var response = new ApiResponse
+            {
+                Result = customerDto,
+                StatusCode = HttpStatusCode.OK,
+                IsSuccess = true,
+                TotalCount = pagedCustomers.TotalCount,
+                PageSize = pagedCustomers.PageSize,
+                PageNumber = pagedCustomers.PageNumber
+            };
+            return Ok(response);
         }
+
+
 
         [HttpGet("{id:guid}", Name ="GetCustomer")]
          public async Task<ActionResult<ApiResponse>> GetCustomer(Guid id)
@@ -148,14 +189,16 @@ namespace MechantInventory.Controllers
             catch (Exception ex)
             {
                 _response.IsSuccess = false;
-                _response.ErrorMessages = new List<string> { ex.Message };
+                var inner = ex.InnerException?.Message ?? ex.Message;
+                _response.ErrorMessages = new List<string> { inner };
+                return StatusCode(500, _response);
 
             }
-            return _response;
+            
         }
 
 
-        [HttpDelete("{id:guid}", Name = "DeleteCustomer")]
+        [HttpDelete("{id:guid}")]
         public async Task<ActionResult<ApiResponse>> DeleteCustomer(Guid id)
         {
             try

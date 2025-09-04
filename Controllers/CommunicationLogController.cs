@@ -25,11 +25,11 @@ namespace MechantInventory.Controllers
             _communicationLogRepository = communicationLogRepository;
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetCommunicationLog()
         {
-            var communicationList = await _communicationLogRepository.GetAllAsync(includeProperties:"Customer");
+            var communicationList = await _communicationLogRepository
+                .GetAllAsync(includeProperties: "Customer");
 
             _response.Result = communicationList;
             _response.IsSuccess = true;
@@ -41,37 +41,55 @@ namespace MechantInventory.Controllers
         [HttpGet("{id:guid}", Name = "GetCommunicationLog")]
         public async Task<ActionResult<ApiResponse>> GetCommunicationLog(Guid id)
         {
-            try
-            {
-                if (id == Guid.Empty)
-                {
-                    _response.IsSuccess = false;
-                    _response.StatusCode = HttpStatusCode.BadRequest;
-                    return BadRequest(_response);
-                }
-
-                CommunicationLog communicationLog = await _communicationLogRepository.GetAsync(u => u.CommunicationLogId == id);
-                if (communicationLog == null)
-                {
-                    _response.IsSuccess = false;
-                    _response.StatusCode = HttpStatusCode.NotFound;
-                    return NotFound(_response);
-                }
-
-                _response.IsSuccess = true;
-                _response.Result = communicationLog;
-                _response.StatusCode = HttpStatusCode.OK;
-                return Ok(_response);
-            }
-            catch (Exception ex)
+            if (id == Guid.Empty)
             {
                 _response.IsSuccess = false;
-                _response.ErrorMessages = new List<string> { ex.Message };
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                return BadRequest(_response);
             }
-            return _response;
+
+            CommunicationLog communicationLog = await _communicationLogRepository
+                .GetAsync(u => u.CommunicationLogId == id, includeProperties: "Customer");
+
+            if (communicationLog == null)
+            {
+                _response.IsSuccess = false;
+                _response.StatusCode = HttpStatusCode.NotFound;
+                return NotFound(_response);
+            }
+
+            _response.IsSuccess = true;
+            _response.Result = communicationLog;
+            _response.StatusCode = HttpStatusCode.OK;
+            return Ok(_response);
         }
 
-        [HttpPost]
+        [HttpGet("by-customer")]
+        public async Task<IActionResult> GetCommunicationLogByCustomer(Guid customerId)
+        {
+            if (customerId == Guid.Empty)
+            {
+                _response.IsSuccess = false;
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.ErrorMessages = new List<string> { "Invalid customerId." };
+                return BadRequest(_response);
+            }
+
+            var logs = await _communicationLogRepository
+                .GetAllAsync(
+                    u => u.CustomerId == customerId,
+                    includeProperties: "Customer"
+                );
+
+            _response.IsSuccess = true;
+            _response.Result = logs;
+            _response.StatusCode = HttpStatusCode.OK;
+
+            return Ok(_response);
+        }
+    
+
+    [HttpPost]
         public async Task<ActionResult<ApiResponse>> CreateCommunicationLog([FromBody] CommunicationCreateLogDto communicationLogDto)
         {
             try

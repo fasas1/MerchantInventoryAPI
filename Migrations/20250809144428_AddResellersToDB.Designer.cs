@@ -4,6 +4,7 @@ using MechantInventory.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MechantInventory.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250809144428_AddResellersToDB")]
+    partial class AddResellersToDB
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -89,36 +92,6 @@ namespace MechantInventory.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("MechantInventory.Model.AuditLog", b =>
-                {
-                    b.Property<int>("AuditLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AuditLogId"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Difference")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("IssueType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RecordedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("TransactionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("AuditLogId");
-
-                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("MechantInventory.Model.CommunicationLog", b =>
@@ -429,38 +402,6 @@ namespace MechantInventory.Migrations
                     b.ToTable("ResellerReturns");
                 });
 
-            modelBuilder.Entity("MechantInventory.Model.ResellerReturnItem", b =>
-                {
-                    b.Property<int>("ResellerReturnItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ResellerReturnItemId"));
-
-                    b.Property<int>("QuantityReturned")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ResellerReturnId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ResellerTransactionItemId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ResellerReturnItemId");
-
-                    b.HasIndex("ResellerReturnId");
-
-                    b.HasIndex("ResellerTransactionItemId");
-
-                    b.ToTable("ResellerReturnItem");
-                });
-
             modelBuilder.Entity("MechantInventory.Model.ResellerTransaction", b =>
                 {
                     b.Property<int>("ResellerTransactionId")
@@ -470,9 +411,6 @@ namespace MechantInventory.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ResellerTransactionId"));
 
                     b.Property<decimal>("AmountPaid")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Balance")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
@@ -503,38 +441,6 @@ namespace MechantInventory.Migrations
                     b.HasIndex("ResellerId");
 
                     b.ToTable("ResellerTransactions");
-                });
-
-            modelBuilder.Entity("MechantInventory.Model.ResellerTransactionItem", b =>
-                {
-                    b.Property<int>("ResellerTransactionItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ResellerTransactionItemId"));
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ResellerTransactionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ReturnedQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ResellerTransactionItemId");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ResellerTransactionId");
-
-                    b.ToTable("ResellerTransactionItems");
                 });
 
             modelBuilder.Entity("MechantInventory.Model.Transaction", b =>
@@ -796,25 +702,6 @@ namespace MechantInventory.Migrations
                     b.Navigation("Transaction");
                 });
 
-            modelBuilder.Entity("MechantInventory.Model.ResellerReturnItem", b =>
-                {
-                    b.HasOne("MechantInventory.Model.ResellerReturn", "ResellerReturn")
-                        .WithMany("Items")
-                        .HasForeignKey("ResellerReturnId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MechantInventory.Model.ResellerTransactionItem", "ResellerTransactionItem")
-                        .WithMany("ReturnItems")
-                        .HasForeignKey("ResellerTransactionItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ResellerReturn");
-
-                    b.Navigation("ResellerTransactionItem");
-                });
-
             modelBuilder.Entity("MechantInventory.Model.ResellerTransaction", b =>
                 {
                     b.HasOne("MechantInventory.Model.Reseller", "Reseller")
@@ -824,25 +711,6 @@ namespace MechantInventory.Migrations
                         .IsRequired();
 
                     b.Navigation("Reseller");
-                });
-
-            modelBuilder.Entity("MechantInventory.Model.ResellerTransactionItem", b =>
-                {
-                    b.HasOne("MechantInventory.Model.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MechantInventory.Model.ResellerTransaction", "ResellerTransaction")
-                        .WithMany("Items")
-                        .HasForeignKey("ResellerTransactionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("ResellerTransaction");
                 });
 
             modelBuilder.Entity("MechantInventory.Model.Transaction", b =>
@@ -933,23 +801,11 @@ namespace MechantInventory.Migrations
                     b.Navigation("Transactions");
                 });
 
-            modelBuilder.Entity("MechantInventory.Model.ResellerReturn", b =>
-                {
-                    b.Navigation("Items");
-                });
-
             modelBuilder.Entity("MechantInventory.Model.ResellerTransaction", b =>
                 {
-                    b.Navigation("Items");
-
                     b.Navigation("Payments");
 
                     b.Navigation("Returns");
-                });
-
-            modelBuilder.Entity("MechantInventory.Model.ResellerTransactionItem", b =>
-                {
-                    b.Navigation("ReturnItems");
                 });
 #pragma warning restore 612, 618
         }

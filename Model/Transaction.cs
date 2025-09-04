@@ -9,6 +9,7 @@
         public string TransactionType { get; set; }  // Type of transaction (Sale or Restock)
         public DateTime Timestamp { get; set; }      // Timestamp for when the transaction occurred
         public string  PerformedBy { get; set; }
+        public string    Description { get; set; }
     }
 
 }
