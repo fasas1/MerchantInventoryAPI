@@ -168,58 +168,55 @@ namespace MechantInventory.Repository
         {
             var transaction = await _db.ResellerTransactions
                 .Include(t => t.Reseller)
-                .Include(t => t.Items).ThenInclude(i => i.Product).ThenInclude(p => p.Stocks)
-                .FirstOrDefaultAsync(t => t.ResellerTransactionId == dto.ResellerTransactionId)
-                ?? throw new Exception("Transaction not found");
+                .Include(t => t.Items)
+                .Include(t => t.Returns)
+                    .ThenInclude(r => r.Items)
+                .FirstOrDefaultAsync(t => t.ResellerTransactionId == dto.ResellerTransactionId);
 
-            if (dto.Items == null || dto.Items.Count == 0)
-                throw new Exception("At least one return item is required");
+            if (transaction == null)
+                throw new Exception("Transaction not found");
 
             var resellerReturn = new ResellerReturn
             {
-                ResellerTransactionId = transaction.ResellerTransactionId,
+                ResellerTransactionId = dto.ResellerTransactionId,
+                Value = dto.Value,
                 Reason = dto.Reason,
                 ApprovedBy = dto.ApprovedBy,
                 ReturnDate = DateTime.UtcNow
             };
 
-            decimal totalReturnValue = 0;
-
+            // Process each return item
             foreach (var rItemDto in dto.Items)
             {
                 var trItem = transaction.Items
-                    .FirstOrDefault(i => i.ResellerTransactionItemId == rItemDto.ResellerTransactionItemId)
-                    ?? throw new Exception("Transaction item not found");
+                    .FirstOrDefault(i => i.ResellerTransactionItemId == rItemDto.ResellerTransactionItemId);
 
+                if (trItem == null)
+                    throw new Exception("Transaction item not found");
+
+                // Check if return > available qty
                 if (rItemDto.QuantityReturned > (trItem.Quantity - trItem.ReturnedQuantity))
                     throw new Exception("Return exceeds purchased quantity");
 
-                // restore stock
-                var stock = trItem.Product.Stocks.First();
-                stock.CurrentQuantity += rItemDto.QuantityReturned;
+                // Update returned qty
+                trItem.ReturnedQuantity += rItemDto.QuantityReturned;
 
-                // snapshot return item
-                var lineVal = rItemDto.QuantityReturned * trItem.UnitPrice;
-                resellerReturn.Items.Add(new ResellerReturnItem
+                // Create return item record
+                var returnItem = new ResellerReturnItem
                 {
-                    ResellerTransactionItem = trItem,
                     ResellerTransactionItemId = trItem.ResellerTransactionItemId,
                     QuantityReturned = rItemDto.QuantityReturned,
                     UnitPrice = trItem.UnitPrice,
-                    TotalPrice = lineVal
-                });
+                    TotalPrice = trItem.UnitPrice * rItemDto.QuantityReturned
+                };
 
-                trItem.ReturnedQuantity += rItemDto.QuantityReturned;
-                totalReturnValue += lineVal;
+                resellerReturn.Items.Add(returnItem);
             }
 
-            resellerReturn.Value = totalReturnValue;
-
-            // adjust transaction totals
-            transaction.TotalAmount -= totalReturnValue;
+            // Update transaction totals
+            transaction.TotalAmount -= resellerReturn.Value;
             if (transaction.TotalAmount < 0) transaction.TotalAmount = 0;
 
-            // recalc balances & credit
             if (transaction.AmountPaid > transaction.TotalAmount)
             {
                 var excess = transaction.AmountPaid - transaction.TotalAmount;
@@ -229,15 +226,18 @@ namespace MechantInventory.Repository
             }
             else
             {
-                transaction.OverPayment = 0;
                 transaction.Balance = transaction.TotalAmount - transaction.AmountPaid;
+                transaction.OverPayment = 0;
             }
 
-            await _db.ResellerReturns.AddAsync(resellerReturn);
+            transaction.Status = transaction.Balance <= 0 ? "Paid" : "Partial";
+
+            transaction.Returns.Add(resellerReturn);
             await _db.SaveChangesAsync();
 
             return resellerReturn;
         }
+
 
     }
 }
